@@ -1,6 +1,8 @@
+import json
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox
-from dataclasses import dataclass
+
 from typing import List, Tuple
 
 
@@ -56,6 +58,18 @@ class QueueCastGUI:
         root.title("Queue Cast")
         self.records: List[Tuple[float, int]] = []
 
+        self.data_file = "records.json"
+        self.default_records = [
+            (7.23, 2016),
+            (7.30, 1974),
+            (8.02, 1967),
+            (8.07, 1947),
+            (8.08, 1940),
+            (8.09, 1930),
+            (9.05, 1777),
+        ]
+        self.load_records()
+
         frame = ttk.Frame(root, padding=10)
         frame.grid(row=0, column=0, sticky="nsew")
 
@@ -73,11 +87,19 @@ class QueueCastGUI:
         self.tree.heading("date", text="Date")
         self.tree.heading("rank", text="Rank")
         self.tree.grid(row=2, column=0, columnspan=3, pady=5)
+        
+        self.tree.bind("<<TreeviewSelect>>", self.on_select)
 
-        ttk.Button(frame, text="Estimate", command=self.estimate).grid(row=3, column=0, columnspan=3, pady=5)
+        ttk.Button(frame, text="Update Record", command=self.update_record).grid(row=3, column=0, pady=5)
+        ttk.Button(frame, text="Delete Record", command=self.delete_record).grid(row=3, column=1, pady=5)
+        ttk.Button(frame, text="Estimate", command=self.estimate).grid(row=3, column=2, pady=5)
 
         self.result_var = tk.StringVar()
         ttk.Label(frame, textvariable=self.result_var).grid(row=4, column=0, columnspan=3)
+
+        # populate tree with existing records
+        for date, rank in self.records:
+            self.tree.insert("", tk.END, values=(f"{date:.2f}", rank))
 
     def add_record(self):
         try:
@@ -88,8 +110,60 @@ class QueueCastGUI:
             return
         self.records.append((date, rank))
         self.tree.insert("", tk.END, values=(f"{date:.2f}", rank))
+        self.save_records()
         self.date_var.set("")
         self.rank_var.set("")
+
+    def on_select(self, _event=None):
+        selected = self.tree.selection()
+        if selected:
+            values = self.tree.item(selected[0])['values']
+            self.date_var.set(values[0])
+            self.rank_var.set(values[1])
+
+    def update_record(self):
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showerror("No selection", "Please select a record to update")
+            return
+        try:
+            date = float(self.date_var.get())
+            rank = int(self.rank_var.get())
+        except ValueError:
+            messagebox.showerror("Invalid input", "Please enter numeric date and rank")
+            return
+        index = self.tree.index(selected[0])
+        self.records[index] = (date, rank)
+        self.tree.item(selected[0], values=(f"{date:.2f}", rank))
+        self.save_records()
+
+    def delete_record(self):
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showerror("No selection", "Please select a record to delete")
+            return
+        index = self.tree.index(selected[0])
+        self.tree.delete(selected[0])
+        del self.records[index]
+        self.save_records()
+        self.date_var.set("")
+        self.rank_var.set("")
+
+    def load_records(self):
+        if os.path.exists(self.data_file):
+            try:
+                with open(self.data_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                self.records = [(float(d["date"]), int(d["rank"])) for d in data]
+            except Exception:
+                self.records = self.default_records.copy()
+        else:
+            self.records = self.default_records.copy()
+            self.save_records()
+
+    def save_records(self):
+        with open(self.data_file, "w", encoding="utf-8") as f:
+            json.dump([{"date": d, "rank": r} for d, r in self.records], f, ensure_ascii=False, indent=2)
 
     def estimate(self):
         try:
