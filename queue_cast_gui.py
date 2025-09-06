@@ -2,6 +2,7 @@ import json
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox
+
 from typing import List, Tuple
 
 
@@ -86,6 +87,7 @@ class QueueCastGUI:
         self.tree.heading("date", text="Date")
         self.tree.heading("rank", text="Rank")
         self.tree.grid(row=2, column=0, columnspan=3, pady=5)
+        
         self.tree.bind("<<TreeviewSelect>>", self.on_select)
 
         ttk.Button(frame, text="Update Record", command=self.update_record).grid(row=3, column=0, pady=5)
